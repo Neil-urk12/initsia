@@ -8,14 +8,14 @@ import {
 } from "kysely";
 
 export interface Database {
-  users: User;
+  users: UserTable;
 }
 
 // Sample User interface
 // Adjust to your needs and use cases
 // I'm using camel cases for backend interface fields to closely align it with database schema
 // Adjust it depending on your project requirements and agreed conventions
-export interface User {
+export interface UserTable {
   user_id: Generated<string>;
   // full_name: string
   first_name: string;
@@ -33,6 +33,8 @@ export interface User {
   //   // plan:
   // }>
 }
+
+export type User = Selectable<UserTable>;
 
 export interface UserDataForCreation {
   full_name: string;
