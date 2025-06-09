@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "elysia": "latest",
+    "kysely": "^0.28.2",
     "mysql2": "^3.14.1"
   },
   "devDependencies": {
