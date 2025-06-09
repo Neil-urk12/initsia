@@ -6,6 +6,11 @@ const pool = createPool({
   password: Bun.env.DB_PASSWORD,
   database: Bun.env.DB_NAME,
   port: parseInt(Bun.env.DB_PORT || "3306"),
+  ...(process.env.DB_SSLMODE !== "disable" && {
+    ssl: {
+      rejectUnauthorized: true,
+    },
+  }),
 });
 
 async function testConnection() {
