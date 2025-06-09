@@ -1,6 +1,5 @@
 import { createPool } from "mysql2/promise";
-import { User } from "../types/userTypes";
-import { Database } from "../types/userTypes";
+import { Database } from "../models/userModels"; // Adjust the import path as necessary 
 import { Kysely, MysqlDialect } from "kysely";
 
 // In case you prefer not to use Kysely
@@ -46,6 +45,6 @@ const dialect = new MysqlDialect({
   }),
 });
 
-export const db = new Kysely<User>({
+export const db = new Kysely<Database>({
   dialect,
 });
