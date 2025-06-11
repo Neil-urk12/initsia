@@ -25,13 +25,13 @@ export interface UserTable {
   roles: string[];
   created_at: ColumnType<Date, string | undefined, never>;
   updated_at: ColumnType<Date, string | undefined, never>;
-  metadata: JSONColumnType<{
-    login_at: string;
-    last_login_at: string;
-    last_logout_at: string; //optional
-    ip: string | null;
-    // plan:
-  }>;
+  // metadata: JSONColumnType<{
+  //   login_at: string;
+  //   last_login_at: string;
+  //   last_logout_at: string; //optional
+  //   ip: string | null;
+  //   // plan:
+  // }>;
 }
 
 export type User = Selectable<UserTable>;
