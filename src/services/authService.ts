@@ -1,54 +1,36 @@
-import * as jwt from 'jsonwebtoken'
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import type { JwtPayload, SignOptions } from "jsonwebtoken";
-import { LoginCredentials, LoginResponse, CreateUserData } from "../types/userTypes";
+import { LoginCredentials, LoginResponse, CreateUserData, UserResponse, RegisterResponse } from "../types/userTypes";
 import userRepository from "../repository/userRepository";
-
-const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key";
-const JWT_EXPIRATION = process.env.JWT_EXPIRATION || "24h";
-
-// In-memory token blacklist
-// This is a simple in-memory token blacklist to prevent token reuse
-// You can use redis or a database if you want to persist the blacklist
-const tokenBlacklist: Set<string> = new Set();
+import pool from "../config/db_config";
 
 class AuthService {
-    generateToken(userId: string): string {
-        const payload = { userId };
-        return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRATION } as SignOptions);
-    }
 
-    blacklistToken(token: string): void {
-        tokenBlacklist.add(token);
-    }
+    async login(credentials: LoginCredentials): Promise<LoginResponse | null> {
+        let user;
+        if (credentials.identifier.includes('@'))
+            user = await userRepository.findUserByEmail(credentials.identifier);
+        else user = await userRepository.findUserByUsername(credentials.identifier);
+        
+        if (!user) throw new Error("User not found");
 
-    verifyToken(token: string): { userId: string } | null {
-        if (tokenBlacklist.has(token)) return null;
+        const isPasswordValid = await bcrypt.compare(credentials.password, user?.password_hash || '');
         
-        try {
-            const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload & { userId: string };
-            return { userId: decoded.userId };
-        } catch (error) {
-            return null;
-        }
-    }
+        if (!isPasswordValid) throw new Error("Invalid credentials");
 
-    async login(credentials: LoginCredentials): Promise<LoginResponse> {
-        const user = await userRepository.findUserByEmail(credentials.email);
-        
-        // Basic authentication - in real apps, use hashed passwords!
-        if (!user || user.password_hash !== credentials.password) {
-            throw new Error("Invalid credentials");
-        }
-        
         return {
-            access_token: this.generateToken(user.user_id),
-            user: user
-        };
+            user: {
+                user_id: user.user_id,
+                username: user.username,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                email: user.email,
+                roles: user.roles
+            } as UserResponse
+        }
     }
 
-    async register(userData: CreateUserData): Promise<LoginResponse> {
+    async register(userData: CreateUserData): Promise<RegisterResponse> {
         const existingUser = await userRepository.findUserByEmail(userData.email);
     
         if (existingUser) {
@@ -59,13 +41,12 @@ class AuthService {
 
         const userDataWithHash = {
             user_id: uuidv4(),
+            username: userData.username,
             email: userData.email,
             first_name: userData.first_name,
             last_name: userData.last_name,
             password_hash: hashedPassword,
-            roles: userData.roles,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            roles: userData.roles
         };
 
         const newUser = await userRepository.createUser(userDataWithHash);
@@ -74,10 +55,9 @@ class AuthService {
             throw new Error('Failed to create user');
         }
 
-        const token = this.generateToken(newUser.user_id);
-
         const userResponse = {
             user_id: newUser.user_id,
+            username: newUser.username,
             first_name: newUser.first_name,
             last_name: newUser.last_name,
             email: newUser.email,
@@ -85,12 +65,84 @@ class AuthService {
         };
 
         return {
-            access_token: token,
             user: userResponse
+        }
+
+    }
+
+    // native SQL service methods
+    async loginNative(credentials: LoginCredentials): Promise<LoginResponse | null> {
+        let user;
+        if (credentials.identifier.includes('@')) {
+          const [rows]: any = await pool.execute(
+            "SELECT * FROM users WHERE email = ?",
+            [credentials.identifier]
+          );
+          user = (rows as any[])[0];
+        } else {
+          const [rows]: any = await pool.execute(
+            "SELECT * FROM users WHERE username = ?",
+            [credentials.identifier]
+          );
+          user = (rows as any[])[0];
+        }
+        if (!user) throw new Error("User not found");
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password,
+          user.password_hash || ''
+        );
+        if (!isPasswordValid) throw new Error("Invalid credentials");
+        return {
+          user: {
+            user_id: user.user_id,
+            username: user.username,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
+            roles: user.roles
+          } as UserResponse
         };
     }
 
-    // async logout(user: )
+    async registerNative(userData: CreateUserData): Promise<RegisterResponse> {
+        const [existingRows]: any = await pool.execute(
+          "SELECT * FROM users WHERE email = ?",
+          [userData.email]
+        );
+        if ((existingRows as any[]).length) {
+          throw new Error("Email already registered");
+        }
+        const hashedPassword = await bcrypt.hash(userData.password, 10);
+        const id = uuidv4();
+        await pool.execute(
+          "INSERT INTO users (user_id, username, first_name, last_name, email, password_hash, roles) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [
+            id,
+            userData.username,
+            userData.first_name,
+            userData.last_name,
+            userData.email,
+            hashedPassword,
+            JSON.stringify(userData.roles)
+          ]
+        );
+        const [rows]: any = await pool.execute(
+          "SELECT * FROM users WHERE user_id = ?",
+          [id]
+        );
+        const newUser = (rows as any[])[0];
+        if (!newUser) throw new Error("Failed to create user");
+        return {
+          user: {
+            user_id: newUser.user_id,
+            username: newUser.username,
+            first_name: newUser.first_name,
+            last_name: newUser.last_name,
+            email: newUser.email,
+            roles: newUser.roles
+          } as UserResponse
+        };
+    }
 }
 
 export default new AuthService();

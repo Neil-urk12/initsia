@@ -1,50 +1,28 @@
 import { createPool } from "mysql2/promise";
-import { Database } from "../models/userModels"; // Adjust the import path as necessary 
-import { Kysely, MysqlDialect } from "kysely";
 
-// In case you prefer not to use Kysely
-// const pool = createPool({
-//   host: Bun.env.DB_HOST,
-//   user: Bun.env.DB_USER,
-//   password: Bun.env.DB_PASSWORD,
-//   database: Bun.env.DB_NAME,
-//   port: parseInt(Bun.env.DB_PORT || "3306"),
-//   ...(process.env.DB_SSLMODE !== "disable" && {
-//     ssl: {
-//       rejectUnauthorized: true,
-//     },
-//   }),
-// });
-//
-// async function testConnection() {
-//   try {
-//     await pool.getConnection();
-//     // Can execute test queries or create table if not exists here too
-//     console.log("Database connection successful");
-//   } catch (error) {
-//     console.error("Database connection failed:", error);
-//   }
-// }
-
-// await testConnection();
-//
-// export default pool;
-
-const dialect = new MysqlDialect({
-  pool: createPool({
-    host: Bun.env.DB_HOST,
-    user: Bun.env.DB_USER,
-    password: Bun.env.DB_PASSWORD,
-    database: Bun.env.DB_NAME,
-    port: parseInt(Bun.env.DB_PORT || "3306"),
-    ...(process.env.DB_SSLMODE !== "disable" && {
-      ssl: {
-        rejectUnauthorized: true,
-      },
-    }),
+const pool = createPool({
+  host: Bun.env.DB_HOSTNAME,
+  user: Bun.env.DB_USERNAME,
+  password: Bun.env.DB_PASSWORD,
+  database: Bun.env.DB_DATABASE,
+  port: parseInt(Bun.env.DB_PORT || "3306"),
+  ...(Bun.env.DB_SSLMODE !== "disable" && {
+    ssl: {
+      rejectUnauthorized: true,
+    },
   }),
 });
 
-export const db = new Kysely<Database>({
-  dialect,
-});
+async function testConnection() {
+  try {
+    await pool.getConnection();
+    // Can execute test queries or create table if not exists here too
+    console.log("Database connection successful");
+  } catch (error) {
+    console.error("Database connection failed:", error);
+  }
+}
+
+await testConnection();
+
+export default pool;
