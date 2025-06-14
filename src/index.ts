@@ -10,10 +10,20 @@ const app = new Elysia()
   .use(authRoutes)
   .get('/ping', async () => {
     // quick health-check query
-    const [rows] = await pool.execute('SELECT * FROM users');
-    return rows;
+    return await pool.execute('SELECT 1');
   })
   .listen(PORT)
+process.on('SIGINT', async () => {
+  console.log('SIGINT signal received: Closing database connection and exiting.');
+  await pool.end();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM signal received: Closing database connection and exiting.');
+  await pool.end();
+  process.exit(0);
+});
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
