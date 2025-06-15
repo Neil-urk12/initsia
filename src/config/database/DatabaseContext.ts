@@ -16,6 +16,12 @@ export class DatabaseContext {
   async testDbConnection(): Promise<void> {
     await this.adapter.testConnection();
   }
+  async getDbPool(): Promise<any> {
+    if (this.adapter.getDbPool) {
+      return this.adapter.getDbPool();
+    }
+    return null; // Or throw an error, depending on desired behavior when getDbPool is not implemented
+  }
 
   static create(dbType: string): DatabaseContext {
     let adapter: IDatabaseAdapter;

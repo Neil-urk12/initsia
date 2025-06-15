@@ -1,5 +1,7 @@
 import dbContext from "../config/db_config";
 import { User, NewUser, UserUpdate } from "../models/userModels";
+import { pool } from "../config/db_config";
+
 
 class UserRepository {
   constructor() {}
@@ -30,26 +32,26 @@ class UserRepository {
 
   // native SQL query methods
   async findUserByIdNative(id: string): Promise<User | null> {
-    const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+    const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE user_id = ?",
       [id]
-    ));
+    );
     return (rows as User[])[0] || null;
   }
 
   async findUserByEmailNative(email: string): Promise<User | null> {
-    const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+    const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE email = ?",
       [email]
-    ));
+    );
     return (rows as User[])[0] || null;
   }
 
   async findUserByUsernameNative(username: string): Promise<User | null> {
-    const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+    const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE username = ?",
       [username]
-    ));
+    );
     return (rows as User[])[0] || null;
   }
 
@@ -64,14 +66,14 @@ class UserRepository {
       user.password_hash,
       rolesJson
     ];
-    await dbContext.getDbConnection().then(conn => conn.execute(
+    await pool.execute(
       "INSERT INTO users (user_id, username, first_name, last_name, email, password_hash, roles) VALUES (?, ?, ?, ?, ?, ?, ?)",
       values
-    ));
-    const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+    );
+    const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE user_id = ?",
       [user.user_id]
-    ));
+    );
     return (rows as User[])[0] || null;
   }
 
@@ -87,11 +89,11 @@ class UserRepository {
     if (user.updated_at !== undefined) { updates.push("updated_at = ?"); params.push(user.updated_at); }
     params.push(user.user_id!);
     const sql = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`;
-    await dbContext.getDbConnection().then(conn => conn.execute(sql, params));
-    const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+    await pool.execute(sql, params);
+    const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE user_id = ?",
       [user.user_id]
-    ));
+    );
     return (rows as User[])[0] || null;
   }
 
@@ -102,10 +104,10 @@ class UserRepository {
     if (criteria.last_name !== undefined) { conditions.push("last_name = ?"); params.push(criteria.last_name); }
     if (criteria.created_at !== undefined) { conditions.push("created_at = ?"); params.push(criteria.created_at); }
     const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+    const [rows]: any = await pool.execute(
       `SELECT * FROM users ${whereClause}`,
       params
-    ));
+    );
     return rows as User[];
   }
 }

@@ -2,7 +2,7 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { LoginCredentials, LoginResponse, CreateUserData, UserResponse, RegisterResponse } from "../types/userTypes";
 import userRepository from "../repository/userRepository";
-import dbContext from "../config/db_config";
+import { pool } from "../config/db_config";
 
 class AuthService {
 
@@ -74,16 +74,16 @@ class AuthService {
     async loginNative(credentials: LoginCredentials): Promise<LoginResponse | null> {
         let user;
         if (credentials.identifier.includes('@')) {
-          const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+          const [rows]: any = await pool.execute(
             "SELECT * FROM users WHERE email = ?",
             [credentials.identifier]
-          ));
+          );
           user = (rows as any[])[0];
         } else {
-          const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+          const [rows]: any = await pool.execute(
             "SELECT * FROM users WHERE username = ?",
             [credentials.identifier]
-          ));
+          );
           user = (rows as any[])[0];
         }
         if (!user) throw new Error("User not found");
@@ -105,16 +105,16 @@ class AuthService {
     }
 
     async registerNative(userData: CreateUserData): Promise<RegisterResponse> {
-        const [existingRows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+        const [existingRows]: any = await pool.execute(
           "SELECT * FROM users WHERE email = ?",
           [userData.email]
-        ));
+        );
         if ((existingRows as any[]).length) {
           throw new Error("Email already registered");
         }
         const hashedPassword = await bcrypt.hash(userData.password, 10);
         const id = uuidv4();
-        await dbContext.getDbConnection().then(conn => conn.execute(
+        await pool.execute(
           "INSERT INTO users (user_id, username, first_name, last_name, email, password_hash, roles) VALUES (?, ?, ?, ?, ?, ?, ?)",
           [
             id,
@@ -125,11 +125,11 @@ class AuthService {
             hashedPassword,
             JSON.stringify(userData.roles)
           ]
-        ));
-        const [rows]: any = await dbContext.getDbConnection().then(conn => conn.execute(
+        );
+        const [rows]: any = await pool.execute(
           "SELECT * FROM users WHERE user_id = ?",
           [id]
-        ));
+        );
         const newUser = (rows as any[])[0];
         if (!newUser) throw new Error("Failed to create user");
         return {

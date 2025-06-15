@@ -22,6 +22,10 @@ export class MySQLAdapter implements IDatabaseAdapter {
   async getConnection(): Promise<PoolConnection> {
     return this.pool.getConnection();
   }
+  
+  async getDbPool(): Promise<Pool> {
+    return this.pool;
+  }
 
   async testConnection(): Promise<void> {
     try {

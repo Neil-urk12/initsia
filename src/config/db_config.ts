@@ -49,3 +49,4 @@ async function testDatabaseConnection() {
 await testDatabaseConnection();
 
 export default dbContext;
+export const pool = await dbContext.getDbPool()
