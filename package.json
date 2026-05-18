@@ -6,14 +6,14 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "@elysiajs/jwt": "^1.4.0",
+    "@elysiajs/jwt": "^1.4.2",
     "@types/bcrypt": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.10",
     "bcrypt": "^6.0.0",
     "elysia": "latest",
     "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.16.0",
-    "uuid": "^11.1.0"
+    "mysql2": "^3.22.3",
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
