@@ -2,8 +2,10 @@
   "name": "blysia",
   "version": "1.0.50",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "test": "vitest run",
+    "dev": "bun run --watch src/index.ts",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit"
   },
   "dependencies": {
     "@elysiajs/jwt": "^1.4.2",
@@ -17,7 +19,8 @@
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "vitest": "^4.1.6"
   },
   "module": "src/index.js"
 }
