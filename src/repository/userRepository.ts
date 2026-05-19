@@ -1,8 +1,9 @@
 import { User, NewUser, UserUpdate } from "../models/userModels";
 import { pool } from "../config/db_config";
+import { IUserRepository } from "./IUserRepository";
 
 
-class UserRepository {
+class UserRepository implements IUserRepository {
   constructor() {}
 
   async findUserById(id: string): Promise<User | null> {

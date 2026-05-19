@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// Mock ALL dependencies before importing
+// Mock db_config to prevent Bun.env access during module loading
 vi.mock('@/config/db_config', async () => {
   const mockPool = { execute: vi.fn() };
   return {
@@ -11,26 +10,33 @@ vi.mock('@/config/db_config', async () => {
     pool: mockPool,
   };
 });
+import { AuthService } from '@/services/authService';
+import { IUserRepository } from '@/repository/IUserRepository';
 
 vi.mock('bcrypt', () => ({
   hash: vi.fn().mockResolvedValue('hashed_password'),
   compare: vi.fn(),
 }));
 
-vi.mock('@/repository/userRepository', () => ({
-  default: {
+function createMockRepo(): IUserRepository {
+  return {
+    findUserById: vi.fn(),
     findUserByEmail: vi.fn(),
     findUserByUsername: vi.fn(),
     createUser: vi.fn(),
-  },
-}));
+    updateUser: vi.fn(),
+    findUsers: vi.fn(),
+  };
+}
 
-import authService from '@/services/authService';
-import userRepository from '@/repository/userRepository';
+describe('AuthService', () => {
+  let mockRepo: IUserRepository;
+  let authService: AuthService;
 
-describe('authService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRepo = createMockRepo();
+    authService = new AuthService(mockRepo);
   });
 
   describe('register', () => {
@@ -46,26 +52,26 @@ describe('authService', () => {
         password_hash: 'hashed_password',
         roles: ['user'],
       };
-      vi.mocked(userRepository.findUserByEmail).mockResolvedValue(null);
-      vi.mocked(userRepository.findUserByUsername).mockResolvedValue(null);
-      vi.mocked(userRepository.createUser).mockResolvedValue(created);
+      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
+      vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue(null);
+      vi.mocked(mockRepo.createUser!).mockResolvedValue(created);
 
       const result = await authService.register(newUser);
 
       expect(result).toEqual({ user: expect.objectContaining({ username: 'test' }) });
-      expect(userRepository.createUser).toHaveBeenCalledWith(
+      expect(mockRepo.createUser).toHaveBeenCalledWith(
         expect.objectContaining({ username: 'test', password_hash: 'hashed_password' })
       );
     });
 
     it('throws if email exists', async () => {
-      vi.mocked(userRepository.findUserByEmail).mockResolvedValue({ user_id: 'existing' });
+      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue({ user_id: 'existing' } as any);
       await expect(authService.register(newUser)).rejects.toThrow(/already exists|registered/i);
     });
 
     it('throws if username exists', async () => {
-      vi.mocked(userRepository.findUserByEmail).mockResolvedValue(null);
-      vi.mocked(userRepository.findUserByUsername).mockResolvedValue({ user_id: 'existing' });
+      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
+      vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue({ user_id: 'existing' } as any);
       await expect(authService.register(newUser)).rejects.toThrow(/already exists/i);
     });
   });
@@ -73,7 +79,7 @@ describe('authService', () => {
   describe('login', () => {
     it('returns user on valid credentials', async () => {
       const user = { user_id: 'u1', username: 'test', password_hash: '$2b$10$hash', roles: ['user'] };
-      vi.mocked(userRepository.findUserByEmail).mockResolvedValue(user);
+      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(user as any);
       const bcrypt = await import('bcrypt');
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
 
@@ -83,14 +89,14 @@ describe('authService', () => {
     });
 
     it('throws if user not found', async () => {
-      vi.mocked(userRepository.findUserByEmail).mockResolvedValue(null);
-      vi.mocked(userRepository.findUserByUsername).mockResolvedValue(null);
+      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
+      vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue(null);
 
       await expect(authService.login({ identifier: 'unknown', password: 'x' })).rejects.toThrow(/not found/i);
     });
 
     it('throws on wrong password', async () => {
-      vi.mocked(userRepository.findUserByEmail).mockResolvedValue({ user_id: 'u1', password_hash: '$2b$10$hash' });
+      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue({ user_id: 'u1', password_hash: '$2b$10$hash' } as any);
       const bcrypt = await import('bcrypt');
       vi.mocked(bcrypt.compare).mockResolvedValue(false);
       await expect(authService.login({ identifier: 't@t.com', password: 'wrong' })).rejects.toThrow(/invalid/i);
@@ -98,15 +104,15 @@ describe('authService', () => {
 
     it('finds user by username when identifier is not email', async () => {
       const user = { user_id: 'u1', username: 'testuser', password_hash: '$2b$10$hash', roles: ['user'] };
-      vi.mocked(userRepository.findUserByEmail).mockResolvedValue(null);
-      vi.mocked(userRepository.findUserByUsername).mockResolvedValue(user);
+      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
+      vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue(user as any);
       const bcrypt = await import('bcrypt');
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
 
       const result = await authService.login({ identifier: 'testuser', password: 'Pass1!' });
 
       expect(result).toEqual({ user: expect.objectContaining({ username: 'testuser' }) });
-      expect(userRepository.findUserByUsername).toHaveBeenCalled();
+      expect(mockRepo.findUserByUsername).toHaveBeenCalled();
     });
   });
 });
