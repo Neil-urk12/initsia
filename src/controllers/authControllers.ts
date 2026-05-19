@@ -1,6 +1,7 @@
 import authService from "../services/authService";
 import jwt from "@elysiajs/jwt";
-import { CreateUserData, LoginCredentials, LoginResponse, UserResponse } from '../types/userTypes';
+import { CreateUserData, LoginCredentials, LoginResponse } from '../types/userTypes';
+import { PublicUser } from '../models/userModels';
 
 export class AuthController {
     async login({ body, jwt, set }: { body: LoginCredentials, jwt: any, set: { status?: number | string } }): Promise<LoginResponse | null> {
@@ -14,7 +15,7 @@ export class AuthController {
 
             const token = await jwt.sign(userPayload)
             return {
-                user: userPayload.user as UserResponse,
+                user: userPayload.user,
                 access_token: token
             };
         } catch (error) {

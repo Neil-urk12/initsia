@@ -21,3 +21,12 @@ export type NewUser = Omit<User, "created_at" | "updated_at">;
 export type UserUpdate = Partial<Omit<User, "user_id">> & {
   user_id: string;
 };
+
+// Public-facing user shape — omits sensitive fields (password_hash, timestamps).
+export type PublicUser = Omit<User, "password_hash" | "created_at" | "updated_at">;
+
+// Convert a full User to a PublicUser by stripping sensitive fields.
+export function toPublicUser(user: User): PublicUser {
+  const { password_hash: _, created_at: __, updated_at: ___, ...publicUser } = user;
+  return publicUser;
+}

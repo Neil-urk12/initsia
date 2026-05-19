@@ -1,12 +1,4 @@
-
-export interface BaseUser {
-  user_id: string
-  username: string
-  first_name: string
-  last_name: string 
-  email: string
-  roles: string[]
-}
+import { PublicUser } from "../models/userModels";
 
 export interface LoginCredentials {
   identifier: string // can be email or username
@@ -15,24 +7,15 @@ export interface LoginCredentials {
 
 export interface LoginResponse {
   access_token?: string
-  user: BaseUser
+  user: PublicUser
 }
 
 export interface RegisterResponse {
-  user: BaseUser
+  user: PublicUser
 }
 
 export interface UserPayload {
-  payload: BaseUser
-}
-
-export interface UserResponse {
-  user_id: string
-  username: string
-  first_name: string
-  last_name: string 
-  email: string
-  roles: string[]
+  payload: PublicUser
 }
 
 export interface CreateUserData {

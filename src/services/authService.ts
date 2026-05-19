@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { LoginCredentials, LoginResponse, CreateUserData, UserResponse, RegisterResponse } from "../types/userTypes";
+import { LoginCredentials, LoginResponse, CreateUserData, RegisterResponse } from "../types/userTypes";
+import { toPublicUser } from "../models/userModels";
 import userRepository from "../repository/userRepository";
 
 class AuthService {
@@ -18,14 +19,7 @@ class AuthService {
         if (!isPasswordValid) throw new Error("Invalid credentials");
 
         return {
-            user: {
-                user_id: user.user_id,
-                username: user.username,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                email: user.email,
-                roles: user.roles
-            } as UserResponse
+            user: toPublicUser(user)
         }
     }
 
@@ -59,17 +53,8 @@ class AuthService {
             throw new Error('Failed to create user');
         }
 
-        const userResponse = {
-            user_id: newUser.user_id,
-            username: newUser.username,
-            first_name: newUser.first_name,
-            last_name: newUser.last_name,
-            email: newUser.email,
-            roles: newUser.roles,
-        };
-
         return {
-            user: userResponse
+            user: toPublicUser(newUser)
         }
 
     }
