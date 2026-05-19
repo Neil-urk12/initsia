@@ -1,4 +1,3 @@
-import dbContext from "../config/db_config";
 import { User, NewUser, UserUpdate } from "../models/userModels";
 import { pool } from "../config/db_config";
 
@@ -7,31 +6,6 @@ class UserRepository {
   constructor() {}
 
   async findUserById(id: string): Promise<User | null> {
-    return await this.findUserByIdNative(id);
-  }
-
-  async findUsers(criteria: Partial<User>) {
-    return await this.findUsersNative(criteria);
-  }
-
-  async createUser(user: NewUser): Promise<User | null> {
-    return await this.createUserNative(user);
-  }
-
-  async updateUser(user: UserUpdate): Promise<User | null> {
-    return await this.updateUserNative(user);
-  }
-
-  async findUserByEmail(email: string): Promise<User | null> {
-    return await this.findUserByEmailNative(email);
-  }
-
-  async findUserByUsername(username: string): Promise<User | null> {
-    return await this.findUserByUsernameNative(username);
-  }
-
-  // native SQL query methods
-  async findUserByIdNative(id: string): Promise<User | null> {
     const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE user_id = ?",
       [id]
@@ -39,7 +13,7 @@ class UserRepository {
     return (rows as User[])[0] || null;
   }
 
-  async findUserByEmailNative(email: string): Promise<User | null> {
+  async findUserByEmail(email: string): Promise<User | null> {
     const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE email = ?",
       [email]
@@ -47,7 +21,7 @@ class UserRepository {
     return (rows as User[])[0] || null;
   }
 
-  async findUserByUsernameNative(username: string): Promise<User | null> {
+  async findUserByUsername(username: string): Promise<User | null> {
     const [rows]: any = await pool.execute(
       "SELECT * FROM users WHERE username = ?",
       [username]
@@ -55,7 +29,7 @@ class UserRepository {
     return (rows as User[])[0] || null;
   }
 
-  async createUserNative(user: NewUser): Promise<User | null> {
+  async createUser(user: NewUser): Promise<User | null> {
     const rolesJson = JSON.stringify(user.roles);
     const values = [
       user.user_id,
@@ -77,7 +51,7 @@ class UserRepository {
     return (rows as User[])[0] || null;
   }
 
-  async updateUserNative(user: UserUpdate): Promise<User | null> {
+  async updateUser(user: UserUpdate): Promise<User | null> {
     const updates: string[] = [];
     const params: any[] = [];
     if (user.username !== undefined) { updates.push("username = ?"); params.push(user.username); }
@@ -97,7 +71,7 @@ class UserRepository {
     return (rows as User[])[0] || null;
   }
 
-  async findUsersNative(criteria: Partial<User>): Promise<User[]> {
+  async findUsers(criteria: Partial<User>): Promise<User[]> {
     const conditions: string[] = [];
     const params: any[] = [];
     if (criteria.first_name !== undefined) { conditions.push("first_name = ?"); params.push(criteria.first_name); }
