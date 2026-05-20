@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
-import { createDatabaseAdapter } from "./config/db_config";
+import { createDatabaseAdapter } from "./config/database/factory";
+import type { DatabasePool } from "./config/database/IDatabaseAdapter";
 import { createAuthModule } from "./modules/auth";
 
 const PORT = Bun.env.PORT || 3000;
