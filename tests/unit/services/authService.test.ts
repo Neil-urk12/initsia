@@ -12,6 +12,13 @@ vi.mock('@/config/db_config', async () => {
 });
 import { AuthService } from '@/services/authService';
 import { IUserRepository } from '@/repository/IUserRepository';
+import { ITokenBlacklist } from '@/services/tokenBlacklist';
+import {
+  InvalidCredentialsError,
+  UserNotFoundError,
+  EmailExistsError,
+  UsernameExistsError,
+} from '@/types/authErrors';
 
 vi.mock('bcrypt', () => ({
   hash: vi.fn().mockResolvedValue('hashed_password'),
@@ -29,14 +36,23 @@ function createMockRepo(): IUserRepository {
   };
 }
 
+function createMockBlacklist(): ITokenBlacklist {
+  return {
+    add: vi.fn(),
+    has: vi.fn().mockReturnValue(false),
+  };
+}
+
 describe('AuthService', () => {
   let mockRepo: IUserRepository;
+  let mockBlacklist: ITokenBlacklist;
   let authService: AuthService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockRepo = createMockRepo();
-    authService = new AuthService(mockRepo);
+    mockBlacklist = createMockBlacklist();
+    authService = new AuthService(mockRepo, mockBlacklist);
   });
 
   describe('register', () => {
@@ -64,15 +80,15 @@ describe('AuthService', () => {
       );
     });
 
-    it('throws if email exists', async () => {
+    it('throws EmailExistsError if email exists', async () => {
       vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue({ user_id: 'existing' } as any);
-      await expect(authService.register(newUser)).rejects.toThrow(/already exists|registered/i);
+      await expect(authService.register(newUser)).rejects.toThrow(EmailExistsError);
     });
 
-    it('throws if username exists', async () => {
+    it('throws UsernameExistsError if username exists', async () => {
       vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
       vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue({ user_id: 'existing' } as any);
-      await expect(authService.register(newUser)).rejects.toThrow(/already exists/i);
+      await expect(authService.register(newUser)).rejects.toThrow(UsernameExistsError);
     });
   });
 
@@ -88,18 +104,18 @@ describe('AuthService', () => {
       expect(result).toEqual({ user: expect.objectContaining({ user_id: 'u1' }) });
     });
 
-    it('throws if user not found', async () => {
+    it('throws UserNotFoundError if user not found', async () => {
       vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
       vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue(null);
 
-      await expect(authService.login({ identifier: 'unknown', password: 'x' })).rejects.toThrow(/not found/i);
+      await expect(authService.login({ identifier: 'unknown', password: 'x' })).rejects.toThrow(UserNotFoundError);
     });
 
-    it('throws on wrong password', async () => {
+    it('throws InvalidCredentialsError on wrong password', async () => {
       vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue({ user_id: 'u1', password_hash: '$2b$10$hash' } as any);
       const bcrypt = await import('bcrypt');
       vi.mocked(bcrypt.compare).mockResolvedValue(false);
-      await expect(authService.login({ identifier: 't@t.com', password: 'wrong' })).rejects.toThrow(/invalid/i);
+      await expect(authService.login({ identifier: 't@t.com', password: 'wrong' })).rejects.toThrow(InvalidCredentialsError);
     });
 
     it('finds user by username when identifier is not email', async () => {
@@ -113,6 +129,21 @@ describe('AuthService', () => {
 
       expect(result).toEqual({ user: expect.objectContaining({ username: 'testuser' }) });
       expect(mockRepo.findUserByUsername).toHaveBeenCalled();
+    });
+  });
+
+  describe('logout', () => {
+    it('adds token to blacklist', () => {
+      authService.logout('some-token');
+      expect(mockBlacklist.add).toHaveBeenCalledWith('some-token');
+    });
+  });
+
+  describe('isTokenBlacklisted', () => {
+    it('delegates to blacklist', () => {
+      vi.mocked(mockBlacklist.has).mockReturnValue(true);
+      expect(authService.isTokenBlacklisted('token')).toBe(true);
+      expect(mockBlacklist.has).toHaveBeenCalledWith('token');
     });
   });
 });

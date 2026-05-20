@@ -1,9 +1,9 @@
 import { Elysia, Context } from "elysia";
 import { JWTPayloadSpec } from "@elysiajs/jwt";
-
+import { ITokenBlacklist } from "../services/tokenBlacklist";
 
 export const authMiddlewarePlugin =
-  (tokenBlacklist: Set<string>) => (app: Elysia) =>
+  (tokenBlacklist: ITokenBlacklist) => (app: Elysia) =>
     app.onBeforeHandle(async (context: Context) => {
       const { jwt, request, set } = context as any;
 
@@ -19,13 +19,10 @@ export const authMiddlewarePlugin =
         return "Unauthorized: Token is blacklisted";
       }
 
-
       const payload = await jwt.verify(token);
 
       if (!payload) {
         set.status = 401;
         return "Unauthorized: Invalid token";
       }
-
-
     });

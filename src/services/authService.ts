@@ -4,22 +4,32 @@ import { LoginCredentials, LoginResponse, CreateUserData, RegisterResponse } fro
 import { toPublicUser } from "../models/userModels";
 import { IUserRepository } from "../repository/IUserRepository";
 import userRepository from "../repository/userRepository";
+import { ITokenBlacklist } from "./tokenBlacklist";
+import {
+  InvalidCredentialsError,
+  UserNotFoundError,
+  EmailExistsError,
+  UsernameExistsError,
+} from "../types/authErrors";
 
 export class AuthService {
 
-    constructor(private userRepo: IUserRepository) {}
+    constructor(
+      private userRepo: IUserRepository,
+      private tokenBlacklist?: ITokenBlacklist,
+    ) {}
 
-    async login(credentials: LoginCredentials): Promise<LoginResponse | null> {
+    async login(credentials: LoginCredentials): Promise<LoginResponse> {
         let user;
         if (credentials.identifier.includes('@'))
             user = await this.userRepo.findUserByEmail(credentials.identifier);
         else user = await this.userRepo.findUserByUsername(credentials.identifier);
 
-        if (!user) throw new Error("User not found");
+        if (!user) throw new UserNotFoundError();
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user?.password_hash || '');
+        const isPasswordValid = await bcrypt.compare(credentials.password, user.password_hash);
 
-        if (!isPasswordValid) throw new Error("Invalid credentials");
+        if (!isPasswordValid) throw new InvalidCredentialsError();
 
         return {
             user: toPublicUser(user)
@@ -30,12 +40,12 @@ export class AuthService {
         const existingUser = await this.userRepo.findUserByEmail(userData.email);
 
         if (existingUser) {
-        throw new Error('Email already registered');
+            throw new EmailExistsError();
         }
 
         const existingUsername = await this.userRepo.findUserByUsername(userData.username);
         if (existingUsername) {
-            throw new Error('Username already exists');
+            throw new UsernameExistsError();
         }
 
         const hashedPassword = await bcrypt.hash(userData.password, 10);
@@ -59,7 +69,18 @@ export class AuthService {
         return {
             user: toPublicUser(newUser)
         }
+    }
 
+    logout(token: string): void {
+        if (!this.tokenBlacklist) {
+            throw new Error('Token blacklist not configured');
+        }
+        this.tokenBlacklist.add(token);
+    }
+
+    isTokenBlacklisted(token: string): boolean {
+        if (!this.tokenBlacklist) return false;
+        return this.tokenBlacklist.has(token);
     }
 }
 
