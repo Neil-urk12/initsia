@@ -1,7 +1,7 @@
-import { createPool, Pool, PoolConnection } from "mysql2/promise";
-import { IDatabaseAdapter } from "./IDatabaseAdapter";
+import { createPool, Pool } from "mysql2/promise";
+import { DatabasePool } from "./IDatabaseAdapter";
 
-export class MySQLAdapter implements IDatabaseAdapter<Pool, PoolConnection> {
+export class MySQLAdapter implements DatabasePool {
   private pool: Pool;
 
   constructor() {
@@ -19,12 +19,9 @@ export class MySQLAdapter implements IDatabaseAdapter<Pool, PoolConnection> {
     });
   }
 
-  async getConnection(): Promise<PoolConnection> {
-    return this.pool.getConnection();
-  }
-  
-  async getDbPool(): Promise<Pool> {
-    return this.pool;
+  async execute<T>(sql: string, params?: any[]): Promise<T[]> {
+    const [rows] = await this.pool.execute(sql, params ?? []);
+    return rows as T[];
   }
 
   async testConnection(): Promise<void> {
@@ -35,5 +32,9 @@ export class MySQLAdapter implements IDatabaseAdapter<Pool, PoolConnection> {
       console.error("MySQL Database connection failed:", error);
       throw error;
     }
+  }
+
+  async close(): Promise<void> {
+    await this.pool.end();
   }
 }

@@ -1,11 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// Mock db_config to prevent Bun.env access during module loading
-vi.mock('@/config/db_config', () => ({
-  getDbPool: vi.fn().mockResolvedValue({ execute: vi.fn() }),
-  testDbConnection: vi.fn().mockResolvedValue(undefined),
-}));
-
 import { UserRepository } from '@/modules/user/repository';
 
 const mockPool = { execute: vi.fn() } as any;
@@ -19,7 +12,7 @@ describe('UserRepository', () => {
   describe('findUserById', () => {
     it('returns user when found', async () => {
       const mockUser = { user_id: '1', username: 'test', email: 'test@test.com' };
-      mockPool.execute.mockResolvedValue([[mockUser]]);
+      mockPool.execute.mockResolvedValue([mockUser]);
 
       const result = await repo.findUserById('1');
 
@@ -28,7 +21,7 @@ describe('UserRepository', () => {
     });
 
     it('returns null when not found', async () => {
-      mockPool.execute.mockResolvedValue([[]]);
+      mockPool.execute.mockResolvedValue([]);
 
       const result = await repo.findUserById('nonexistent');
 
@@ -39,7 +32,7 @@ describe('UserRepository', () => {
   describe('findUserByEmail', () => {
     it('returns user when found', async () => {
       const mockUser = { user_id: '1', email: 'test@test.com' };
-      mockPool.execute.mockResolvedValue([[mockUser]]);
+      mockPool.execute.mockResolvedValue([mockUser]);
 
       const result = await repo.findUserByEmail('test@test.com');
 
@@ -48,7 +41,7 @@ describe('UserRepository', () => {
     });
 
     it('returns null when not found', async () => {
-      mockPool.execute.mockResolvedValue([[]]);
+      mockPool.execute.mockResolvedValue([]);
       expect(await repo.findUserByEmail('missing@test.com')).toBeNull();
     });
   });
@@ -56,7 +49,7 @@ describe('UserRepository', () => {
   describe('findUserByUsername', () => {
     it('returns user when found', async () => {
       const mockUser = { user_id: '1', username: 'testuser' };
-      mockPool.execute.mockResolvedValue([[mockUser]]);
+      mockPool.execute.mockResolvedValue([mockUser]);
 
       const result = await repo.findUserByUsername('testuser');
 
@@ -65,7 +58,7 @@ describe('UserRepository', () => {
     });
 
     it('returns null when not found', async () => {
-      mockPool.execute.mockResolvedValue([[]]);
+      mockPool.execute.mockResolvedValue([]);
       expect(await repo.findUserByUsername('nouser')).toBeNull();
     });
   });
@@ -83,8 +76,8 @@ describe('UserRepository', () => {
       };
       const createdUser = { ...newUser, roles: ['user'] };
       mockPool.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[createdUser]]);
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([createdUser]);
 
       const result = await repo.createUser(newUser);
 
@@ -103,8 +96,8 @@ describe('UserRepository', () => {
 
     it('returns null if creation fails', async () => {
       mockPool.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[]]);
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
 
       const result = await repo.createUser({
         user_id: 'uuid-456',
@@ -124,8 +117,8 @@ describe('UserRepository', () => {
       const update = { user_id: '1', username: 'updated', first_name: 'Updated' };
       const updatedUser = { user_id: '1', username: 'updated', first_name: 'Updated', email: 'old@test.com' };
       mockPool.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[updatedUser]]);
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([updatedUser]);
 
       const result = await repo.updateUser(update);
 
@@ -141,8 +134,8 @@ describe('UserRepository', () => {
       const update = { user_id: '1', roles: ['admin', 'user'] };
       const updatedUser = { user_id: '1', roles: ['admin', 'user'] };
       mockPool.execute
-        .mockResolvedValueOnce([{ affectedRows: 1 }])
-        .mockResolvedValueOnce([[updatedUser]]);
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([updatedUser]);
 
       await repo.updateUser(update);
 
@@ -157,7 +150,7 @@ describe('UserRepository', () => {
   describe('findUsers', () => {
     it('returns all users when no criteria', async () => {
       const users = [{ user_id: '1' }, { user_id: '2' }];
-      mockPool.execute.mockResolvedValue([users]);
+      mockPool.execute.mockResolvedValue(users);
 
       const result = await repo.findUsers({});
 
@@ -167,7 +160,7 @@ describe('UserRepository', () => {
 
     it('filters by criteria', async () => {
       const users = [{ user_id: '1', first_name: 'John' }];
-      mockPool.execute.mockResolvedValue([users]);
+      mockPool.execute.mockResolvedValue(users);
 
       const result = await repo.findUsers({ first_name: 'John', last_name: 'Doe' });
 

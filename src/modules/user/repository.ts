@@ -1,4 +1,4 @@
-import { Pool } from "mysql2/promise";
+import { DatabasePool } from "../../config/database/IDatabaseAdapter";
 import { User, NewUser, UserUpdate } from "./model";
 
 export interface IUserRepository {
@@ -11,30 +11,30 @@ export interface IUserRepository {
 }
 
 export class UserRepository implements IUserRepository {
-  constructor(private pool: Pool) {}
+  constructor(private pool: DatabasePool) {}
 
   async findUserById(id: string): Promise<User | null> {
-    const [rows]: any = await this.pool.execute(
+    const rows = await this.pool.execute<User>(
       "SELECT * FROM users WHERE user_id = ?",
       [id]
     );
-    return (rows as User[])[0] || null;
+    return rows[0] ?? null;
   }
 
   async findUserByEmail(email: string): Promise<User | null> {
-    const [rows]: any = await this.pool.execute(
+    const rows = await this.pool.execute<User>(
       "SELECT * FROM users WHERE email = ?",
       [email]
     );
-    return (rows as User[])[0] || null;
+    return rows[0] ?? null;
   }
 
   async findUserByUsername(username: string): Promise<User | null> {
-    const [rows]: any = await this.pool.execute(
+    const rows = await this.pool.execute<User>(
       "SELECT * FROM users WHERE username = ?",
       [username]
     );
-    return (rows as User[])[0] || null;
+    return rows[0] ?? null;
   }
 
   async createUser(user: NewUser): Promise<User | null> {
@@ -52,11 +52,11 @@ export class UserRepository implements IUserRepository {
       "INSERT INTO users (user_id, username, first_name, last_name, email, password_hash, roles) VALUES (?, ?, ?, ?, ?, ?, ?)",
       values
     );
-    const [rows]: any = await this.pool.execute(
+    const rows = await this.pool.execute<User>(
       "SELECT * FROM users WHERE user_id = ?",
       [user.user_id]
     );
-    return (rows as User[])[0] || null;
+    return rows[0] ?? null;
   }
 
   async updateUser(user: UserUpdate): Promise<User | null> {
@@ -72,11 +72,11 @@ export class UserRepository implements IUserRepository {
     params.push(user.user_id!);
     const sql = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`;
     await this.pool.execute(sql, params);
-    const [rows]: any = await this.pool.execute(
+    const rows = await this.pool.execute<User>(
       "SELECT * FROM users WHERE user_id = ?",
       [user.user_id]
     );
-    return (rows as User[])[0] || null;
+    return rows[0] ?? null;
   }
 
   async findUsers(criteria: Partial<User>): Promise<User[]> {
@@ -86,10 +86,9 @@ export class UserRepository implements IUserRepository {
     if (criteria.last_name !== undefined) { conditions.push("last_name = ?"); params.push(criteria.last_name); }
     if (criteria.created_at !== undefined) { conditions.push("created_at = ?"); params.push(criteria.created_at); }
     const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    const [rows]: any = await this.pool.execute(
+    return this.pool.execute<User>(
       `SELECT * FROM users ${whereClause}`,
       params
     );
-    return rows as User[];
   }
 }

@@ -1,7 +1,7 @@
-import { Pool, PoolClient } from "pg";
-import { IDatabaseAdapter } from "./IDatabaseAdapter";
+import { Pool } from "pg";
+import { DatabasePool } from "./IDatabaseAdapter";
 
-export class PostgreSQLAdapter implements IDatabaseAdapter<Pool, PoolClient> {
+export class PostgreSQLAdapter implements DatabasePool {
   private pool: Pool;
 
   constructor() {
@@ -17,12 +17,9 @@ export class PostgreSQLAdapter implements IDatabaseAdapter<Pool, PoolClient> {
     });
   }
 
-  async getConnection(): Promise<PoolClient> {
-    return this.pool.connect();
-  }
-
-  async getDbPool(): Promise<Pool> {
-    return this.pool;
+  async execute<T>(sql: string, params?: any[]): Promise<T[]> {
+    const result = await this.pool.query(sql, params ?? []);
+    return result.rows as T[];
   }
 
   async testConnection(): Promise<void> {
@@ -34,5 +31,9 @@ export class PostgreSQLAdapter implements IDatabaseAdapter<Pool, PoolClient> {
       console.error("PostgreSQL Database connection failed:", error);
       throw error;
     }
+  }
+
+  async close(): Promise<void> {
+    await this.pool.end();
   }
 }

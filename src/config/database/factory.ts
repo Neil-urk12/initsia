@@ -1,8 +1,8 @@
-import { IDatabaseAdapter } from "./IDatabaseAdapter";
+import { DatabasePool } from "./IDatabaseAdapter";
 import { MySQLAdapter } from "./MySQLAdapter";
 import { PostgreSQLAdapter } from "./PostgreSQLAdapter";
 
-export function createDatabaseAdapter(dbType: string): IDatabaseAdapter<any, any> {
+export function createDatabaseAdapter(dbType: string): DatabasePool {
   switch (dbType) {
     case "mysql":
       return new MySQLAdapter();

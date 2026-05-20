@@ -1,31 +1,32 @@
 import { Elysia } from "elysia";
-import { testDbConnection, getDbPool } from "./config/db_config";
-import { auth } from "./modules/auth";
+import { createDatabaseAdapter } from "./config/db_config";
+import { createAuthModule } from "./modules/auth";
 
 const PORT = Bun.env.PORT || 3000;
+const dbType = (Bun.env.DB_TYPE ?? "mysql").toLowerCase();
+const db = createDatabaseAdapter(dbType);
 
-await testDbConnection();
+await db.testConnection();
+
+const auth = createAuthModule(db);
 
 const app = new Elysia()
   .get("/", () => "Welcome to Elysia API!")
   .use(auth)
   .get("/ping", async () => {
-    const pool = await getDbPool();
-    return await pool.execute("SELECT 1");
+    return db.execute("SELECT 1");
   })
   .listen(PORT);
 
 process.on("SIGINT", async () => {
   console.log("SIGINT signal received: Closing database connection and exiting.");
-  const pool = await getDbPool();
-  await pool.end();
+  await db.close();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   console.log("SIGTERM signal received: Closing database connection and exiting.");
-  const pool = await getDbPool();
-  await pool.end();
+  await db.close();
   process.exit(0);
 });
 

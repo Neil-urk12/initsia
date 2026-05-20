@@ -1,5 +1,5 @@
-export interface IDatabaseAdapter<TPool, TConnection> {
-  getConnection(): Promise<TConnection>;
+export interface DatabasePool {
+  execute<T>(sql: string, params?: any[]): Promise<T[]>;
   testConnection(): Promise<void>;
-  getDbPool(): Promise<TPool>;
+  close(): Promise<void>;
 }
