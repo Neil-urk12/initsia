@@ -1,40 +1,35 @@
 import { IDatabaseAdapter } from "./IDatabaseAdapter";
 import { MySQLAdapter } from "./MySQLAdapter";
 import { PostgreSQLAdapter } from "./PostgreSQLAdapter";
+import { Pool, PoolConnection } from "mysql2/promise";
 
-export class DatabaseContext {
-  private adapter: IDatabaseAdapter;
+export class DatabaseContext<TPool, TConnection> {
+  private adapter: IDatabaseAdapter<TPool, TConnection>;
 
-  constructor(adapter: IDatabaseAdapter) {
+  constructor(adapter: IDatabaseAdapter<TPool, TConnection>) {
     this.adapter = adapter;
   }
 
-  async getDbConnection(): Promise<any> {
+  async getDbConnection(): Promise<TConnection> {
     return this.adapter.getConnection();
   }
 
   async testDbConnection(): Promise<void> {
     await this.adapter.testConnection();
   }
-  async getDbPool(): Promise<any> {
-    if (this.adapter.getDbPool) {
-      return this.adapter.getDbPool();
-    }
-    return null; // Or throw an error, depending on desired behavior when getDbPool is not implemented
+
+  async getDbPool(): Promise<TPool> {
+    return this.adapter.getDbPool();
   }
 
-  static create(dbType: string): DatabaseContext {
-    let adapter: IDatabaseAdapter;
+  static create(dbType: string): DatabaseContext<any, any> {
     switch (dbType.toLowerCase()) {
       case "mysql":
-        adapter = new MySQLAdapter();
-        break;
+        return new DatabaseContext<Pool, PoolConnection>(new MySQLAdapter());
       case "postgresql":
-        adapter = new PostgreSQLAdapter();
-        break;
+        return new DatabaseContext(new PostgreSQLAdapter());
       default:
         throw new Error(`Unsupported database type: ${dbType}`);
     }
-    return new DatabaseContext(adapter);
   }
 }

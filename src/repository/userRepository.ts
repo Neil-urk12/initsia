@@ -1,13 +1,13 @@
+import { Pool } from "mysql2/promise";
 import { User, NewUser, UserUpdate } from "../models/userModels";
-import { pool } from "../config/db_config";
 import { IUserRepository } from "./IUserRepository";
+import { pool } from "../config/db_config";
 
-
-class UserRepository implements IUserRepository {
-  constructor() {}
+export class UserRepository implements IUserRepository {
+  constructor(private pool: Pool) {}
 
   async findUserById(id: string): Promise<User | null> {
-    const [rows]: any = await pool.execute(
+    const [rows]: any = await this.pool.execute(
       "SELECT * FROM users WHERE user_id = ?",
       [id]
     );
@@ -15,7 +15,7 @@ class UserRepository implements IUserRepository {
   }
 
   async findUserByEmail(email: string): Promise<User | null> {
-    const [rows]: any = await pool.execute(
+    const [rows]: any = await this.pool.execute(
       "SELECT * FROM users WHERE email = ?",
       [email]
     );
@@ -23,7 +23,7 @@ class UserRepository implements IUserRepository {
   }
 
   async findUserByUsername(username: string): Promise<User | null> {
-    const [rows]: any = await pool.execute(
+    const [rows]: any = await this.pool.execute(
       "SELECT * FROM users WHERE username = ?",
       [username]
     );
@@ -41,11 +41,11 @@ class UserRepository implements IUserRepository {
       user.password_hash,
       rolesJson
     ];
-    await pool.execute(
+    await this.pool.execute(
       "INSERT INTO users (user_id, username, first_name, last_name, email, password_hash, roles) VALUES (?, ?, ?, ?, ?, ?, ?)",
       values
     );
-    const [rows]: any = await pool.execute(
+    const [rows]: any = await this.pool.execute(
       "SELECT * FROM users WHERE user_id = ?",
       [user.user_id]
     );
@@ -64,8 +64,8 @@ class UserRepository implements IUserRepository {
     if (user.updated_at !== undefined) { updates.push("updated_at = ?"); params.push(user.updated_at); }
     params.push(user.user_id!);
     const sql = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`;
-    await pool.execute(sql, params);
-    const [rows]: any = await pool.execute(
+    await this.pool.execute(sql, params);
+    const [rows]: any = await this.pool.execute(
       "SELECT * FROM users WHERE user_id = ?",
       [user.user_id]
     );
@@ -79,7 +79,7 @@ class UserRepository implements IUserRepository {
     if (criteria.last_name !== undefined) { conditions.push("last_name = ?"); params.push(criteria.last_name); }
     if (criteria.created_at !== undefined) { conditions.push("created_at = ?"); params.push(criteria.created_at); }
     const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    const [rows]: any = await pool.execute(
+    const [rows]: any = await this.pool.execute(
       `SELECT * FROM users ${whereClause}`,
       params
     );
@@ -87,4 +87,4 @@ class UserRepository implements IUserRepository {
   }
 }
 
-export default new UserRepository()
+export default new UserRepository(pool);

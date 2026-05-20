@@ -1,19 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock the entire db_config module BEFORE any imports
-vi.mock('@/config/db_config', async () => {
+// Mock db_config to prevent Bun.env access during module loading
+vi.mock('@/config/db_config', () => {
   const mockPool = { execute: vi.fn() };
-  return {
-    default: {
-      getDbPool: vi.fn().mockResolvedValue(mockPool),
-      testDbConnection: vi.fn().mockResolvedValue(undefined),
-    },
-    pool: mockPool,
-  };
+  return { default: mockPool, pool: mockPool };
 });
 
-import { pool } from '@/config/db_config';
-import userRepository from '@/repository/userRepository';
+import { UserRepository } from '@/repository/userRepository';
+
+const mockPool = { execute: vi.fn() } as any;
+const repo = new UserRepository(mockPool);
 
 describe('UserRepository', () => {
   beforeEach(() => {
@@ -23,18 +19,18 @@ describe('UserRepository', () => {
   describe('findUserById', () => {
     it('returns user when found', async () => {
       const mockUser = { user_id: '1', username: 'test', email: 'test@test.com' };
-      vi.mocked(pool.execute).mockResolvedValue([[mockUser]]);
+      mockPool.execute.mockResolvedValue([[mockUser]]);
 
-      const result = await userRepository.findUserById('1');
+      const result = await repo.findUserById('1');
 
-      expect(pool.execute).toHaveBeenCalledWith('SELECT * FROM users WHERE user_id = ?', ['1']);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM users WHERE user_id = ?', ['1']);
       expect(result).toEqual(mockUser);
     });
 
     it('returns null when not found', async () => {
-      vi.mocked(pool.execute).mockResolvedValue([[]]);
+      mockPool.execute.mockResolvedValue([[]]);
 
-      const result = await userRepository.findUserById('nonexistent');
+      const result = await repo.findUserById('nonexistent');
 
       expect(result).toBeNull();
     });
@@ -43,34 +39,34 @@ describe('UserRepository', () => {
   describe('findUserByEmail', () => {
     it('returns user when found', async () => {
       const mockUser = { user_id: '1', email: 'test@test.com' };
-      vi.mocked(pool.execute).mockResolvedValue([[mockUser]]);
+      mockPool.execute.mockResolvedValue([[mockUser]]);
 
-      const result = await userRepository.findUserByEmail('test@test.com');
+      const result = await repo.findUserByEmail('test@test.com');
 
-      expect(pool.execute).toHaveBeenCalledWith('SELECT * FROM users WHERE email = ?', ['test@test.com']);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM users WHERE email = ?', ['test@test.com']);
       expect(result).toEqual(mockUser);
     });
 
     it('returns null when not found', async () => {
-      vi.mocked(pool.execute).mockResolvedValue([[]]);
-      expect(await userRepository.findUserByEmail('missing@test.com')).toBeNull();
+      mockPool.execute.mockResolvedValue([[]]);
+      expect(await repo.findUserByEmail('missing@test.com')).toBeNull();
     });
   });
 
   describe('findUserByUsername', () => {
     it('returns user when found', async () => {
       const mockUser = { user_id: '1', username: 'testuser' };
-      vi.mocked(pool.execute).mockResolvedValue([[mockUser]]);
+      mockPool.execute.mockResolvedValue([[mockUser]]);
 
-      const result = await userRepository.findUserByUsername('testuser');
+      const result = await repo.findUserByUsername('testuser');
 
-      expect(pool.execute).toHaveBeenCalledWith('SELECT * FROM users WHERE username = ?', ['testuser']);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM users WHERE username = ?', ['testuser']);
       expect(result).toEqual(mockUser);
     });
 
     it('returns null when not found', async () => {
-      vi.mocked(pool.execute).mockResolvedValue([[]]);
-      expect(await userRepository.findUserByUsername('nouser')).toBeNull();
+      mockPool.execute.mockResolvedValue([[]]);
+      expect(await repo.findUserByUsername('nouser')).toBeNull();
     });
   });
 
@@ -86,18 +82,18 @@ describe('UserRepository', () => {
         roles: ['user'],
       };
       const createdUser = { ...newUser, roles: ['user'] };
-      vi.mocked(pool.execute)
+      mockPool.execute
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[createdUser]]);
 
-      const result = await userRepository.createUser(newUser);
+      const result = await repo.createUser(newUser);
 
-      expect(pool.execute).toHaveBeenNthCalledWith(
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
         1,
         'INSERT INTO users (user_id, username, first_name, last_name, email, password_hash, roles) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['uuid-123', 'newuser', 'New', 'User', 'new@test.com', 'hash123', '["user"]']
       );
-      expect(pool.execute).toHaveBeenNthCalledWith(
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
         2,
         'SELECT * FROM users WHERE user_id = ?',
         ['uuid-123']
@@ -106,11 +102,11 @@ describe('UserRepository', () => {
     });
 
     it('returns null if creation fails', async () => {
-      vi.mocked(pool.execute)
+      mockPool.execute
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[]]);
 
-      const result = await userRepository.createUser({
+      const result = await repo.createUser({
         user_id: 'uuid-456',
         username: 'failuser',
         first_name: '',
@@ -127,13 +123,13 @@ describe('UserRepository', () => {
     it('updates only provided fields', async () => {
       const update = { user_id: '1', username: 'updated', first_name: 'Updated' };
       const updatedUser = { user_id: '1', username: 'updated', first_name: 'Updated', email: 'old@test.com' };
-      vi.mocked(pool.execute)
+      mockPool.execute
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[updatedUser]]);
 
-      const result = await userRepository.updateUser(update);
+      const result = await repo.updateUser(update);
 
-      expect(pool.execute).toHaveBeenNthCalledWith(
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
         1,
         'UPDATE users SET username = ?, first_name = ? WHERE user_id = ?',
         ['updated', 'Updated', '1']
@@ -144,13 +140,13 @@ describe('UserRepository', () => {
     it('handles roles field JSON serialization', async () => {
       const update = { user_id: '1', roles: ['admin', 'user'] };
       const updatedUser = { user_id: '1', roles: ['admin', 'user'] };
-      vi.mocked(pool.execute)
+      mockPool.execute
         .mockResolvedValueOnce([{ affectedRows: 1 }])
         .mockResolvedValueOnce([[updatedUser]]);
 
-      await userRepository.updateUser(update);
+      await repo.updateUser(update);
 
-      expect(pool.execute).toHaveBeenNthCalledWith(
+      expect(mockPool.execute).toHaveBeenNthCalledWith(
         1,
         'UPDATE users SET roles = ? WHERE user_id = ?',
         ['["admin","user"]', '1']
@@ -161,21 +157,21 @@ describe('UserRepository', () => {
   describe('findUsers', () => {
     it('returns all users when no criteria', async () => {
       const users = [{ user_id: '1' }, { user_id: '2' }];
-      vi.mocked(pool.execute).mockResolvedValue([users]);
+      mockPool.execute.mockResolvedValue([users]);
 
-      const result = await userRepository.findUsers({});
+      const result = await repo.findUsers({});
 
-      expect(pool.execute).toHaveBeenCalledWith('SELECT * FROM users ', []);
+      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM users ', []);
       expect(result).toEqual(users);
     });
 
     it('filters by criteria', async () => {
       const users = [{ user_id: '1', first_name: 'John' }];
-      vi.mocked(pool.execute).mockResolvedValue([users]);
+      mockPool.execute.mockResolvedValue([users]);
 
-      const result = await userRepository.findUsers({ first_name: 'John', last_name: 'Doe' });
+      const result = await repo.findUsers({ first_name: 'John', last_name: 'Doe' });
 
-      expect(pool.execute).toHaveBeenCalledWith(
+      expect(mockPool.execute).toHaveBeenCalledWith(
         'SELECT * FROM users WHERE first_name = ? AND last_name = ?',
         ['John', 'Doe']
       );

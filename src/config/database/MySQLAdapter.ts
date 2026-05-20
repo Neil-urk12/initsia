@@ -1,7 +1,7 @@
 import { createPool, Pool, PoolConnection } from "mysql2/promise";
 import { IDatabaseAdapter } from "./IDatabaseAdapter";
 
-export class MySQLAdapter implements IDatabaseAdapter {
+export class MySQLAdapter implements IDatabaseAdapter<Pool, PoolConnection> {
   private pool: Pool;
 
   constructor() {
