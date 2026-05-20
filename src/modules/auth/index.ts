@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { UserRepository } from "../user/repository";
+import { UserService } from "../user/service";
 import { getDbPool } from "../../config/db_config";
 import { AuthService, InMemoryTokenBlacklist } from "./service";
 import {
@@ -14,7 +15,8 @@ import {
 const tokenBlacklist = new InMemoryTokenBlacklist();
 const pool = await getDbPool();
 const userRepo = new UserRepository(pool);
-const authService = new AuthService(userRepo, tokenBlacklist);
+const userService = new UserService(userRepo);
+const authService = new AuthService(userService, tokenBlacklist);
 
 const JWT_SECRET = Bun.env.JWT_SECRET || "default_secret_key";
 

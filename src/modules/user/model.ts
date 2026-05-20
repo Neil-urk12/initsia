@@ -30,3 +30,13 @@ export function toPublicUser(user: User): PublicUser {
   const { password_hash: _, created_at: __, updated_at: ___, ...publicUser } = user;
   return publicUser;
 }
+
+// Data required from the client to register a new user.
+export interface CreateUserData {
+  username: string
+  first_name: string
+  last_name: string
+  email: string
+  password: string
+  roles: string[]
+}

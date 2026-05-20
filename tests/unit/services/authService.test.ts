@@ -5,27 +5,23 @@ vi.mock('@/config/db_config', () => ({
   testDbConnection: vi.fn().mockResolvedValue(undefined),
 }));
 import { AuthService, ITokenBlacklist } from '@/modules/auth/service';
-import { IUserRepository } from '@/modules/user/repository';
+import { IUserService } from '@/modules/user/service';
 import {
   InvalidCredentialsError,
   UserNotFoundError,
-  EmailExistsError,
-  UsernameExistsError,
-} from '@/modules/auth/errors';
+} from '@/modules/user/errors';
 
 vi.mock('bcrypt', () => ({
   hash: vi.fn().mockResolvedValue('hashed_password'),
   compare: vi.fn(),
 }));
 
-function createMockRepo(): IUserRepository {
+function createMockUserService(): IUserService {
   return {
-    findUserById: vi.fn(),
-    findUserByEmail: vi.fn(),
-    findUserByUsername: vi.fn(),
-    createUser: vi.fn(),
-    updateUser: vi.fn(),
-    findUsers: vi.fn(),
+    register: vi.fn(),
+    findById: vi.fn(),
+    findForAuthByEmail: vi.fn(),
+    findForAuthByUsername: vi.fn(),
   };
 }
 
@@ -37,91 +33,70 @@ function createMockBlacklist(): ITokenBlacklist {
 }
 
 describe('AuthService', () => {
-  let mockRepo: IUserRepository;
+  let mockUserService: IUserService;
   let mockBlacklist: ITokenBlacklist;
   let authService: AuthService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRepo = createMockRepo();
+    mockUserService = createMockUserService();
     mockBlacklist = createMockBlacklist();
-    authService = new AuthService(mockRepo, mockBlacklist);
+    authService = new AuthService(mockUserService, mockBlacklist);
   });
 
   describe('register', () => {
-    const newUser = { username: 'test', email: 't@t.com', password: 'Pass1!', first_name: 'T', last_name: 'U' };
+    const newUser = { username: 'test', email: 't@t.com', password: 'Pass1!', first_name: 'T', last_name: 'U', roles: ['user'] };
 
-    it('creates user and returns it', async () => {
-      const created = {
-        user_id: 'u1',
-        username: 'test',
-        email: 't@t.com',
-        first_name: 'T',
-        last_name: 'U',
-        password_hash: 'hashed_password',
-        roles: ['user'],
-      };
-      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
-      vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue(null);
-      vi.mocked(mockRepo.createUser!).mockResolvedValue(created);
+    it('delegates to userService.register', async () => {
+      const publicUser = { user_id: 'u1', username: 'test', email: 't@t.com', first_name: 'T', last_name: 'U', roles: ['user'] };
+      vi.mocked(mockUserService.register).mockResolvedValue(publicUser);
 
       const result = await authService.register(newUser);
 
-      expect(result).toEqual({ user: expect.objectContaining({ username: 'test' }) });
-      expect(mockRepo.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({ username: 'test', password_hash: 'hashed_password' })
-      );
-    });
-
-    it('throws EmailExistsError if email exists', async () => {
-      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue({ user_id: 'existing' } as any);
-      await expect(authService.register(newUser)).rejects.toThrow(EmailExistsError);
-    });
-
-    it('throws UsernameExistsError if username exists', async () => {
-      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
-      vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue({ user_id: 'existing' } as any);
-      await expect(authService.register(newUser)).rejects.toThrow(UsernameExistsError);
+      expect(mockUserService.register).toHaveBeenCalledWith(newUser);
+      expect(result).toEqual({ user: publicUser });
     });
   });
 
   describe('login', () => {
-    it('returns user on valid credentials', async () => {
-      const user = { user_id: 'u1', username: 'test', password_hash: '$2b$10$hash', roles: ['user'] };
-      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(user as any);
+    it('returns user on valid email credentials', async () => {
+      const user = { user_id: 'u1', username: 'test', email: 't@t.com', first_name: 'T', last_name: 'U', password_hash: '$2b$10$hash', roles: ['user'], created_at: new Date() };
+      vi.mocked(mockUserService.findForAuthByEmail).mockResolvedValue(user as any);
       const bcrypt = await import('bcrypt');
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
 
       const result = await authService.login({ identifier: 't@t.com', password: 'Pass1!' });
 
-      expect(result).toEqual({ user: expect.objectContaining({ user_id: 'u1' }) });
+      expect(mockUserService.findForAuthByEmail).toHaveBeenCalledWith('t@t.com');
+      expect(result.user.user_id).toBe('u1');
+      expect(result.user).not.toHaveProperty('password_hash');
     });
 
     it('throws UserNotFoundError if user not found', async () => {
-      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
-      vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue(null);
+      vi.mocked(mockUserService.findForAuthByEmail).mockResolvedValue(null);
 
-      await expect(authService.login({ identifier: 'unknown', password: 'x' })).rejects.toThrow(UserNotFoundError);
+      await expect(authService.login({ identifier: 'unknown@t.com', password: 'x' })).rejects.toThrow(UserNotFoundError);
     });
 
     it('throws InvalidCredentialsError on wrong password', async () => {
-      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue({ user_id: 'u1', password_hash: '$2b$10$hash' } as any);
+      const user = { user_id: 'u1', password_hash: '$2b$10$hash', created_at: new Date() };
+      vi.mocked(mockUserService.findForAuthByEmail).mockResolvedValue(user as any);
       const bcrypt = await import('bcrypt');
       vi.mocked(bcrypt.compare).mockResolvedValue(false);
+
       await expect(authService.login({ identifier: 't@t.com', password: 'wrong' })).rejects.toThrow(InvalidCredentialsError);
     });
 
     it('finds user by username when identifier is not email', async () => {
-      const user = { user_id: 'u1', username: 'testuser', password_hash: '$2b$10$hash', roles: ['user'] };
-      vi.mocked(mockRepo.findUserByEmail!).mockResolvedValue(null);
-      vi.mocked(mockRepo.findUserByUsername!).mockResolvedValue(user as any);
+      const user = { user_id: 'u1', username: 'testuser', password_hash: '$2b$10$hash', roles: ['user'], created_at: new Date() };
+      vi.mocked(mockUserService.findForAuthByUsername).mockResolvedValue(user as any);
       const bcrypt = await import('bcrypt');
       vi.mocked(bcrypt.compare).mockResolvedValue(true);
 
       const result = await authService.login({ identifier: 'testuser', password: 'Pass1!' });
 
-      expect(result).toEqual({ user: expect.objectContaining({ username: 'testuser' }) });
-      expect(mockRepo.findUserByUsername).toHaveBeenCalled();
+      expect(mockUserService.findForAuthByUsername).toHaveBeenCalledWith('testuser');
+      expect(result.user.username).toBe('testuser');
     });
   });
 

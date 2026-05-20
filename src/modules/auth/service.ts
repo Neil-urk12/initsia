@@ -1,14 +1,11 @@
 import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
-import { LoginCredentials, LoginResponse, CreateUserData, RegisterResponse } from "./model";
-import { toPublicUser } from "../user/model";
-import { IUserRepository } from "../user/repository";
+import { LoginCredentials, LoginResponse, RegisterResponse } from "./model";
+import { CreateUserData, toPublicUser } from "../user/model";
+import { IUserService } from "../user/service";
 import {
   InvalidCredentialsError,
   UserNotFoundError,
-  EmailExistsError,
-  UsernameExistsError,
-} from "./errors";
+} from "../user/errors";
 
 export interface ITokenBlacklist {
   add(token: string): void;
@@ -24,15 +21,15 @@ export class InMemoryTokenBlacklist implements ITokenBlacklist {
 export class AuthService {
 
     constructor(
-      private userRepo: IUserRepository,
+      private userService: IUserService,
       private tokenBlacklist?: ITokenBlacklist,
     ) {}
 
     async login(credentials: LoginCredentials): Promise<LoginResponse> {
         let user;
         if (credentials.identifier.includes('@'))
-            user = await this.userRepo.findUserByEmail(credentials.identifier);
-        else user = await this.userRepo.findUserByUsername(credentials.identifier);
+            user = await this.userService.findForAuthByEmail(credentials.identifier);
+        else user = await this.userService.findForAuthByUsername(credentials.identifier);
 
         if (!user) throw new UserNotFoundError();
 
@@ -46,38 +43,8 @@ export class AuthService {
     }
 
     async register(userData: CreateUserData): Promise<RegisterResponse> {
-        const existingUser = await this.userRepo.findUserByEmail(userData.email);
-
-        if (existingUser) {
-            throw new EmailExistsError();
-        }
-
-        const existingUsername = await this.userRepo.findUserByUsername(userData.username);
-        if (existingUsername) {
-            throw new UsernameExistsError();
-        }
-
-        const hashedPassword = await bcrypt.hash(userData.password, 10);
-
-        const userDataWithHash = {
-            user_id: uuidv4(),
-            username: userData.username,
-            email: userData.email,
-            first_name: userData.first_name,
-            last_name: userData.last_name,
-            password_hash: hashedPassword,
-            roles: userData.roles
-        };
-
-        const newUser = await this.userRepo.createUser(userDataWithHash);
-
-        if (!newUser) {
-            throw new Error('Failed to create user');
-        }
-
-        return {
-            user: toPublicUser(newUser)
-        }
+        const publicUser = await this.userService.register(userData);
+        return { user: publicUser };
     }
 
     logout(token: string): void {

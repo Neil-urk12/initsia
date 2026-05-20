@@ -1,5 +1,8 @@
 import { PublicUser } from "../user/model";
 
+// Re-export from user module — it's a user domain type
+export type { CreateUserData } from "../user/model";
+
 export interface LoginCredentials {
   identifier: string // can be email or username
   password: string
@@ -16,13 +19,4 @@ export interface RegisterResponse {
 
 export interface UserPayload {
   payload: PublicUser
-}
-
-export interface CreateUserData {
-  username: string
-  first_name: string
-  last_name: string
-  email: string
-  password: string
-  roles: string[]
 }
