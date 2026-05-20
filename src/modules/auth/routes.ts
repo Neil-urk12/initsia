@@ -8,6 +8,7 @@ import {
   EmailExistsError,
   UsernameExistsError,
 } from "./errors";
+import { loginBodySchema, registerBodySchema } from "./model";
 
 export function createAuthRoutes(
   authService: AuthService,
@@ -30,6 +31,8 @@ export function createAuthRoutes(
     })
     .onError(({ code, error, status }) => {
       switch (code) {
+        case "VALIDATION":
+          return status(422, { success: false, message: "Invalid request body", details: error.all });
         case "InvalidCredentialsError":
           return status(401, { success: false, message: error.message });
         case "UserNotFoundError":
@@ -43,14 +46,14 @@ export function createAuthRoutes(
     })
     // Public routes
     .post("/register", async ({ body, status }) => {
-      const result = await authService.register(body as any);
+      const result = await authService.register(body);
       return status(201, { success: true, ...result });
-    })
+    }, { body: registerBodySchema })
     .post("/login", async ({ body, jwt, status }) => {
-      const result = await authService.login(body as any);
+      const result = await authService.login(body);
       const token = await jwt.sign({ user: result.user });
       return { access_token: token, ...result };
-    })
+    }, { body: loginBodySchema })
     // Protected routes
     .guard(
       { beforeHandle: jwtGuard },
