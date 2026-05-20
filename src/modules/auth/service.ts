@@ -1,16 +1,25 @@
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { LoginCredentials, LoginResponse, CreateUserData, RegisterResponse } from "../types/userTypes";
-import { toPublicUser } from "../models/userModels";
-import { IUserRepository } from "../repository/IUserRepository";
-import userRepository from "../repository/userRepository";
-import { ITokenBlacklist } from "./tokenBlacklist";
+import { LoginCredentials, LoginResponse, CreateUserData, RegisterResponse } from "./model";
+import { toPublicUser } from "../user/model";
+import { IUserRepository } from "../user/repository";
 import {
   InvalidCredentialsError,
   UserNotFoundError,
   EmailExistsError,
   UsernameExistsError,
-} from "../types/authErrors";
+} from "./errors";
+
+export interface ITokenBlacklist {
+  add(token: string): void;
+  has(token: string): boolean;
+}
+
+export class InMemoryTokenBlacklist implements ITokenBlacklist {
+  private tokens: Set<string> = new Set();
+  add(token: string): void { this.tokens.add(token); }
+  has(token: string): boolean { return this.tokens.has(token); }
+}
 
 export class AuthService {
 
@@ -83,5 +92,3 @@ export class AuthService {
         return this.tokenBlacklist.has(token);
     }
 }
-
-export default new AuthService(userRepository);

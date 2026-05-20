@@ -1,7 +1,14 @@
 import { Pool } from "mysql2/promise";
-import { User, NewUser, UserUpdate } from "../models/userModels";
-import { IUserRepository } from "./IUserRepository";
-import { pool } from "../config/db_config";
+import { User, NewUser, UserUpdate } from "./model";
+
+export interface IUserRepository {
+  findUserById(id: string): Promise<User | null>;
+  findUserByEmail(email: string): Promise<User | null>;
+  findUserByUsername(username: string): Promise<User | null>;
+  createUser(user: NewUser): Promise<User | null>;
+  updateUser(user: UserUpdate): Promise<User | null>;
+  findUsers(criteria: Partial<User>): Promise<User[]>;
+}
 
 export class UserRepository implements IUserRepository {
   constructor(private pool: Pool) {}
@@ -86,5 +93,3 @@ export class UserRepository implements IUserRepository {
     return rows as User[];
   }
 }
-
-export default new UserRepository(pool);

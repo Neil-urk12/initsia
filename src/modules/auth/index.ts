@@ -1,26 +1,28 @@
-import Elysia from "elysia";
+import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
-import { AuthService } from "../services/authService";
-import { InMemoryTokenBlacklist } from "../services/tokenBlacklist";
-import { authMiddlewarePlugin } from "../middlewares/authMiddleware";
+import { UserRepository } from "../user/repository";
+import { pool } from "../../config/db_config";
+import { AuthService, InMemoryTokenBlacklist } from "./service";
 import {
   InvalidCredentialsError,
   UserNotFoundError,
   EmailExistsError,
   UsernameExistsError,
-} from "../types/authErrors";
+} from "./errors";
 
+// Composition: wire dependencies here
 const tokenBlacklist = new InMemoryTokenBlacklist();
-const authService = new AuthService(
-  (await import("../repository/userRepository")).default,
-  tokenBlacklist,
-);
+const userRepo = new UserRepository(pool);
+const authService = new AuthService(userRepo, tokenBlacklist);
 
-const authRoutes = new Elysia({ prefix: "/user" })
+const JWT_SECRET = Bun.env.JWT_SECRET || "default_secret_key";
+
+// Auth module — Elysia instance as controller
+export const auth = new Elysia({ prefix: "/user" })
   .use(
     jwt({
       name: "jwt",
-      secret: Bun.env.JWT_SECRET || "default_secret_key",
+      secret: JWT_SECRET,
     }),
   )
   .error({
@@ -41,16 +43,8 @@ const authRoutes = new Elysia({ prefix: "/user" })
       default:
         return status(500, { success: false, message: "Internal server error" });
     }
-  });
-
-// Public routes
-const unprotectedRoutes = new Elysia()
-  .use(
-    jwt({
-      name: "jwt",
-      secret: Bun.env.JWT_SECRET || "default_secret_key",
-    }),
-  )
+  })
+  // Public routes
   .post("/register", async ({ body, status }) => {
     const result = await authService.register(body as any);
     return status(201, { success: true, ...result });
@@ -59,11 +53,28 @@ const unprotectedRoutes = new Elysia()
     const result = await authService.login(body as any);
     const token = await jwt.sign({ user: result.user });
     return { access_token: token, ...result };
-  });
+  })
+  // Protected routes — inline middleware as scoped onBeforeHandle
+  .onBeforeHandle(async ({ request, jwt, set }) => {
+    const token = request.headers.get("authorization")?.split(" ")[1];
 
-// Protected routes
-const protectedRoutes = new Elysia()
-  .use(authMiddlewarePlugin(tokenBlacklist))
+    if (!token) {
+      set.status = 401;
+      return "Unauthorized: Token not provided";
+    }
+
+    if (tokenBlacklist.has(token)) {
+      set.status = 401;
+      return "Unauthorized: Token is blacklisted";
+    }
+
+    const payload = await jwt.verify(token);
+
+    if (!payload) {
+      set.status = 401;
+      return "Unauthorized: Invalid token";
+    }
+  })
   .post("/logout", async ({ headers, status }) => {
     const token = headers.authorization?.split(" ")[1];
     if (!token) {
@@ -73,6 +84,4 @@ const protectedRoutes = new Elysia()
     return { success: true, message: "Logged out successfully" };
   });
 
-authRoutes.use(unprotectedRoutes).use(protectedRoutes);
-
-export default authRoutes;
+export default auth;

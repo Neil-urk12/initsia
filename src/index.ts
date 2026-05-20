@@ -1,12 +1,12 @@
 import { Elysia } from "elysia";
 import { dbContext } from "./config/db_config";
-import authRoutes from "./routes/authRoutes";
+import { auth } from "./modules/auth";
 
 const PORT = Bun.env.PORT || 3000;
 
 const app = new Elysia()
   .get("/", () => "Welcome to Elysia API!")
-  .use(authRoutes)
+  .use(auth)
   .get("/ping", async () => {
     const pool = await dbContext.getDbPool();
     return await pool.execute("SELECT 1");

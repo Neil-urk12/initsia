@@ -10,15 +10,14 @@ vi.mock('@/config/db_config', async () => {
     pool: mockPool,
   };
 });
-import { AuthService } from '@/services/authService';
-import { IUserRepository } from '@/repository/IUserRepository';
-import { ITokenBlacklist } from '@/services/tokenBlacklist';
+import { AuthService, ITokenBlacklist } from '@/modules/auth/service';
+import { IUserRepository } from '@/modules/user/repository';
 import {
   InvalidCredentialsError,
   UserNotFoundError,
   EmailExistsError,
   UsernameExistsError,
-} from '@/types/authErrors';
+} from '@/modules/auth/errors';
 
 vi.mock('bcrypt', () => ({
   hash: vi.fn().mockResolvedValue('hashed_password'),

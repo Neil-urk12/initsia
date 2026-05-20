@@ -6,7 +6,7 @@ vi.mock('@/config/db_config', () => {
   return { default: mockPool, pool: mockPool };
 });
 
-import { UserRepository } from '@/repository/userRepository';
+import { UserRepository } from '@/modules/user/repository';
 
 const mockPool = { execute: vi.fn() } as any;
 const repo = new UserRepository(mockPool);

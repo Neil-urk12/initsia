@@ -1,4 +1,4 @@
-import { PublicUser } from "../models/userModels";
+import { PublicUser } from "../user/model";
 
 export interface LoginCredentials {
   identifier: string // can be email or username
