@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { UserRepository } from "../user/repository";
-import { pool } from "../../config/db_config";
+import { getDbPool } from "../../config/db_config";
 import { AuthService, InMemoryTokenBlacklist } from "./service";
 import {
   InvalidCredentialsError,
@@ -12,6 +12,7 @@ import {
 
 // Composition: wire dependencies here
 const tokenBlacklist = new InMemoryTokenBlacklist();
+const pool = await getDbPool();
 const userRepo = new UserRepository(pool);
 const authService = new AuthService(userRepo, tokenBlacklist);
 

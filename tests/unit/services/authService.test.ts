@@ -1,15 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock db_config to prevent Bun.env access during module loading
-vi.mock('@/config/db_config', async () => {
-  const mockPool = { execute: vi.fn() };
-  return {
-    default: {
-      getDbPool: vi.fn().mockResolvedValue(mockPool),
-      testDbConnection: vi.fn().mockResolvedValue(undefined),
-    },
-    pool: mockPool,
-  };
-});
+vi.mock('@/config/db_config', () => ({
+  getDbPool: vi.fn().mockResolvedValue({ execute: vi.fn() }),
+  testDbConnection: vi.fn().mockResolvedValue(undefined),
+}));
 import { AuthService, ITokenBlacklist } from '@/modules/auth/service';
 import { IUserRepository } from '@/modules/user/repository';
 import {

@@ -1,24 +1,12 @@
-import { Pool } from "mysql2/promise";
-import { DatabaseContext } from "./database/DatabaseContext";
+import { createDatabaseAdapter } from "./database/factory";
 
-const rawDbType = typeof Bun !== "undefined" && Bun.env && typeof Bun.env.DB_TYPE === "string"
-  ? Bun.env.DB_TYPE
-  : "mysql";
+const dbType = (Bun.env.DB_TYPE ?? "mysql").toLowerCase();
+const adapter = createDatabaseAdapter(dbType);
 
-const dbType = rawDbType.toLowerCase();
-const dbContext = DatabaseContext.create(dbType);
-
-async function testDatabaseConnection(): Promise<void> {
-  try {
-    await dbContext.testDbConnection();
-    console.log("Database connection successful");
-  } catch (error) {
-    console.error("Database connection failed:", error);
-    process.exit(1);
-  }
+export async function getDbPool() {
+  return adapter.getDbPool();
 }
 
-await testDatabaseConnection();
-
-export { dbContext };
-export const pool: Pool = await dbContext.getDbPool();
+export async function testDbConnection() {
+  return adapter.testConnection();
+}
