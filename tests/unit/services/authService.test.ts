@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AuthService, ITokenBlacklist } from '@/modules/auth/service';
+import { AuthService } from '@/modules/auth/service';
+import { ITokenBlacklist } from '@/modules/auth/blacklist';
 import { IUserService } from '@/modules/user/service';
 import {
   InvalidCredentialsError,

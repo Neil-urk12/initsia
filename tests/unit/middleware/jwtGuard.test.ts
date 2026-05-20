@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ITokenBlacklist } from '@/modules/auth/service';
+import { ITokenBlacklist } from '@/modules/auth/blacklist';
 import { createJWTMiddleware } from '@/modules/auth/middleware';
 
 function createMockBlacklist(tokens: Set<string> = new Set()): ITokenBlacklist {

@@ -6,23 +6,13 @@ import {
   InvalidCredentialsError,
   UserNotFoundError,
 } from "../user/errors";
-
-export interface ITokenBlacklist {
-  add(token: string): void;
-  has(token: string): boolean;
-}
-
-export class InMemoryTokenBlacklist implements ITokenBlacklist {
-  private tokens: Set<string> = new Set();
-  add(token: string): void { this.tokens.add(token); }
-  has(token: string): boolean { return this.tokens.has(token); }
-}
+import { ITokenBlacklist } from "./blacklist";
 
 export class AuthService {
 
     constructor(
       private userService: IUserService,
-      private tokenBlacklist?: ITokenBlacklist,
+      private tokenBlacklist: ITokenBlacklist,
     ) {}
 
     async login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -48,14 +38,10 @@ export class AuthService {
     }
 
     logout(token: string): void {
-        if (!this.tokenBlacklist) {
-            throw new Error('Token blacklist not configured');
-        }
         this.tokenBlacklist.add(token);
     }
 
     isTokenBlacklisted(token: string): boolean {
-        if (!this.tokenBlacklist) return false;
         return this.tokenBlacklist.has(token);
     }
 }

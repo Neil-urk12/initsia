@@ -1,4 +1,4 @@
-import type { ITokenBlacklist } from "./service";
+import type { ITokenBlacklist } from "./blacklist";
 
 export function createJWTMiddleware(tokenBlacklist: ITokenBlacklist) {
   return async function jwtGuard({
