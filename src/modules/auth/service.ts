@@ -6,13 +6,11 @@ import {
   InvalidCredentialsError,
   UserNotFoundError,
 } from "../user/errors";
-import { ITokenBlacklist } from "./blacklist";
 
 export class AuthService {
 
     constructor(
       private userService: IUserService,
-      private tokenBlacklist: ITokenBlacklist,
     ) {}
 
     async login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -35,13 +33,5 @@ export class AuthService {
     async register(userData: CreateUserData): Promise<RegisterResponse> {
         const publicUser = await this.userService.register(userData);
         return { user: publicUser };
-    }
-
-    logout(token: string): void {
-        this.tokenBlacklist.add(token);
-    }
-
-    isTokenBlacklisted(token: string): boolean {
-        return this.tokenBlacklist.has(token);
     }
 }

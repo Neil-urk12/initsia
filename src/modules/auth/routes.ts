@@ -1,18 +1,19 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import type { AuthService } from "./service";
-import type { createJWTMiddleware } from "./middleware";
+import type { createAuthGuard } from "./guard";
 import {
   InvalidCredentialsError,
   UserNotFoundError,
   EmailExistsError,
   UsernameExistsError,
-} from "./errors";
+} from "../user/errors";
 import { loginBodySchema, registerBodySchema } from "./model";
 
 export function createAuthRoutes(
   authService: AuthService,
-  jwtGuard: ReturnType<typeof createJWTMiddleware>,
+  guard: ReturnType<typeof createAuthGuard>,
+  blacklist: Set<string>,
 ) {
   const JWT_SECRET = Bun.env.JWT_SECRET || "default_secret_key";
 
@@ -55,15 +56,13 @@ export function createAuthRoutes(
       return { access_token: token, ...result };
     }, { body: loginBodySchema })
     // Protected routes
-    .guard(
-      { beforeHandle: jwtGuard },
-      (app) =>
-        app.post("/logout", async ({ headers, status }) => {
-          const token = headers.authorization?.split(" ")[1];
-          if (!token) {
-            return status(400, { success: false, message: "Token not provided" });
-          }
-          authService.logout(token);
+    .guard({ beforeHandle: guard }, (app) =>
+      app
+        .resolve(({ headers }) => ({
+          token: headers.authorization?.split(" ")[1],
+        }))
+        .post("/logout", ({ token }) => {
+          blacklist.add(token);
           return { success: true, message: "Logged out successfully" };
         }),
     );

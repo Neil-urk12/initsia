@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthService } from '@/modules/auth/service';
-import { ITokenBlacklist } from '@/modules/auth/blacklist';
 import { IUserService } from '@/modules/user/service';
 import {
   InvalidCredentialsError,
@@ -21,23 +20,14 @@ function createMockUserService(): IUserService {
   };
 }
 
-function createMockBlacklist(): ITokenBlacklist {
-  return {
-    add: vi.fn(),
-    has: vi.fn().mockReturnValue(false),
-  };
-}
-
 describe('AuthService', () => {
   let mockUserService: IUserService;
-  let mockBlacklist: ITokenBlacklist;
   let authService: AuthService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserService = createMockUserService();
-    mockBlacklist = createMockBlacklist();
-    authService = new AuthService(mockUserService, mockBlacklist);
+    authService = new AuthService(mockUserService);
   });
 
   describe('register', () => {
@@ -93,21 +83,6 @@ describe('AuthService', () => {
 
       expect(mockUserService.findForAuthByUsername).toHaveBeenCalledWith('testuser');
       expect(result.user.username).toBe('testuser');
-    });
-  });
-
-  describe('logout', () => {
-    it('adds token to blacklist', () => {
-      authService.logout('some-token');
-      expect(mockBlacklist.add).toHaveBeenCalledWith('some-token');
-    });
-  });
-
-  describe('isTokenBlacklisted', () => {
-    it('delegates to blacklist', () => {
-      vi.mocked(mockBlacklist.has).mockReturnValue(true);
-      expect(authService.isTokenBlacklisted('token')).toBe(true);
-      expect(mockBlacklist.has).toHaveBeenCalledWith('token');
     });
   });
 });

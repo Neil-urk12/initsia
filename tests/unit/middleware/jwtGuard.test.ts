@@ -1,13 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ITokenBlacklist } from '@/modules/auth/blacklist';
-import { createJWTMiddleware } from '@/modules/auth/middleware';
-
-function createMockBlacklist(tokens: Set<string> = new Set()): ITokenBlacklist {
-  return {
-    add: vi.fn(),
-    has: vi.fn((token: string) => tokens.has(token)),
-  };
-}
+import { validateToken, createAuthGuard } from '@/modules/auth/guard';
 
 function createMockJwt(validToken: string = 'valid-token') {
   return {
@@ -18,71 +10,109 @@ function createMockJwt(validToken: string = 'valid-token') {
   };
 }
 
-function createMockSet() {
-  return { status: 200 };
-}
-
-function createRequestWithToken(token?: string): Request {
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers['authorization'] = `Bearer ${token}`;
-  }
-  return new Request('http://localhost', { headers });
-}
-
-describe('JWT Middleware (createJWTMiddleware)', () => {
-  let mockBlacklist: ITokenBlacklist;
+describe('validateToken (pure function)', () => {
+  let blacklist: Set<string>;
   let mockJwt: ReturnType<typeof createMockJwt>;
-  let mockSet: ReturnType<typeof createMockSet>;
-  let middleware: ReturnType<typeof createJWTMiddleware>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockBlacklist = createMockBlacklist();
+    blacklist = new Set();
     mockJwt = createMockJwt();
-    mockSet = createMockSet();
-    middleware = createJWTMiddleware(mockBlacklist);
   });
 
-  it('returns 401 when no Authorization header is provided', async () => {
-    const request = createRequestWithToken();
+  it('returns error when token is undefined', async () => {
+    const result = await validateToken(undefined, blacklist, mockJwt);
 
-    const result = await middleware({ request, jwt: mockJwt, set: mockSet });
-
-    expect(mockSet.status).toBe(401);
-    expect(result).toBe('Unauthorized: Token not provided');
+    expect(result).toEqual({ error: 'Unauthorized: Token not provided', status: 401 });
   });
 
-  it('returns 401 when token is in the blacklist', async () => {
-    const blacklistedTokens = new Set(['blacklisted-token']);
-    mockBlacklist = createMockBlacklist(blacklistedTokens);
-    middleware = createJWTMiddleware(mockBlacklist);
+  it('returns error when token is blacklisted', async () => {
+    blacklist.add('blacklisted-token');
 
-    const request = createRequestWithToken('blacklisted-token');
+    const result = await validateToken('blacklisted-token', blacklist, mockJwt);
 
-    const result = await middleware({ request, jwt: mockJwt, set: mockSet });
-
-    expect(mockSet.status).toBe(401);
-    expect(result).toBe('Unauthorized: Token is blacklisted');
+    expect(result).toEqual({ error: 'Unauthorized: Token is blacklisted', status: 401 });
   });
 
-  it('returns 401 when jwt.verify returns null (invalid token)', async () => {
-    const request = createRequestWithToken('invalid-token');
-
-    const result = await middleware({ request, jwt: mockJwt, set: mockSet });
+  it('returns error when jwt.verify returns null (invalid token)', async () => {
+    const result = await validateToken('invalid-token', blacklist, mockJwt);
 
     expect(mockJwt.verify).toHaveBeenCalledWith('invalid-token');
-    expect(mockSet.status).toBe(401);
-    expect(result).toBe('Unauthorized: Invalid token');
+    expect(result).toEqual({ error: 'Unauthorized: Invalid token', status: 401 });
   });
 
-  it('returns undefined when token is valid and not blacklisted', async () => {
-    const request = createRequestWithToken('valid-token');
-
-    const result = await middleware({ request, jwt: mockJwt, set: mockSet });
+  it('returns token and payload when token is valid', async () => {
+    const result = await validateToken('valid-token', blacklist, mockJwt);
 
     expect(mockJwt.verify).toHaveBeenCalledWith('valid-token');
-    expect(mockSet.status).toBe(200); // unchanged
+    expect(result).toEqual({ token: 'valid-token', payload: { user: 'test' } });
+  });
+});
+
+describe('createAuthGuard (middleware)', () => {
+  let blacklist: Set<string>;
+  let mockJwt: ReturnType<typeof createMockJwt>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    blacklist = new Set();
+    mockJwt = createMockJwt();
+  });
+
+  it('returns undefined when token is valid', async () => {
+    const guard = createAuthGuard(blacklist);
+    const request = new Request('http://localhost', {
+      headers: { authorization: 'Bearer valid-token' },
+    });
+    const status = vi.fn() as any;
+
+    const result = await guard({ request, jwt: mockJwt, status });
+
     expect(result).toBeUndefined();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 when no Authorization header', async () => {
+    const guard = createAuthGuard(blacklist);
+    const request = new Request('http://localhost');
+    const status = vi.fn() as any;
+
+    await guard({ request, jwt: mockJwt, status });
+
+    expect(status).toHaveBeenCalledWith(401, {
+      success: false,
+      message: 'Unauthorized: Token not provided',
+    });
+  });
+
+  it('returns 401 when token is blacklisted', async () => {
+    blacklist.add('revoked');
+    const guard = createAuthGuard(blacklist);
+    const request = new Request('http://localhost', {
+      headers: { authorization: 'Bearer revoked' },
+    });
+    const status = vi.fn() as any;
+
+    await guard({ request, jwt: mockJwt, status });
+
+    expect(status).toHaveBeenCalledWith(401, {
+      success: false,
+      message: 'Unauthorized: Token is blacklisted',
+    });
+  });
+
+  it('returns 401 when token is invalid', async () => {
+    const guard = createAuthGuard(blacklist);
+    const request = new Request('http://localhost', {
+      headers: { authorization: 'Bearer bad-token' },
+    });
+    const status = vi.fn() as any;
+
+    await guard({ request, jwt: mockJwt, status });
+
+    expect(status).toHaveBeenCalledWith(401, {
+      success: false,
+      message: 'Unauthorized: Invalid token',
+    });
   });
 });
