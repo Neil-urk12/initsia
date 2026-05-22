@@ -7,7 +7,6 @@ export interface IUserRepository {
   findUserByUsername(username: string): Promise<User | null>;
   createUser(user: NewUser): Promise<User | null>;
   updateUser(user: UserUpdate): Promise<User | null>;
-  findUsers(criteria: Partial<User>): Promise<User[]>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -77,18 +76,5 @@ export class UserRepository implements IUserRepository {
       [user.user_id]
     );
     return rows[0] ?? null;
-  }
-
-  async findUsers(criteria: Partial<User>): Promise<User[]> {
-    const conditions: string[] = [];
-    const params: any[] = [];
-    if (criteria.first_name !== undefined) { conditions.push("first_name = ?"); params.push(criteria.first_name); }
-    if (criteria.last_name !== undefined) { conditions.push("last_name = ?"); params.push(criteria.last_name); }
-    if (criteria.created_at !== undefined) { conditions.push("created_at = ?"); params.push(criteria.created_at); }
-    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    return this.pool.execute<User>(
-      `SELECT * FROM users ${whereClause}`,
-      params
-    );
   }
 }

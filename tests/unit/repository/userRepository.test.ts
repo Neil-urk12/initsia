@@ -146,29 +146,4 @@ describe('UserRepository', () => {
       );
     });
   });
-
-  describe('findUsers', () => {
-    it('returns all users when no criteria', async () => {
-      const users = [{ user_id: '1' }, { user_id: '2' }];
-      mockPool.execute.mockResolvedValue(users);
-
-      const result = await repo.findUsers({});
-
-      expect(mockPool.execute).toHaveBeenCalledWith('SELECT * FROM users ', []);
-      expect(result).toEqual(users);
-    });
-
-    it('filters by criteria', async () => {
-      const users = [{ user_id: '1', first_name: 'John' }];
-      mockPool.execute.mockResolvedValue(users);
-
-      const result = await repo.findUsers({ first_name: 'John', last_name: 'Doe' });
-
-      expect(mockPool.execute).toHaveBeenCalledWith(
-        'SELECT * FROM users WHERE first_name = ? AND last_name = ?',
-        ['John', 'Doe']
-      );
-      expect(result).toEqual(users);
-    });
-  });
 });

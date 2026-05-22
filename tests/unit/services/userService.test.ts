@@ -22,7 +22,6 @@ function createMockRepo(): IUserRepository {
     findUserByUsername: vi.fn(),
     createUser: vi.fn(),
     updateUser: vi.fn(),
-    findUsers: vi.fn(),
   };
 }
 
